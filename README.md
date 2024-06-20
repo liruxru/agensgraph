@@ -1,3 +1,18 @@
+# Important Notice
+
+**AgensGraph Repository Migration**
+
+AgensGraph will be moved to a new GitHub repository: [BitnineGlobal/agensgraph](https://github.com/BitnineGlobal/agensgraph).
+
+**New Repository Open to Public**: July 1 EST
+**Current Repository Archived**: June 28 EST
+**AgensGraph 2.14 released on the new repository**: July 1 EST
+**New website for Bitnine Global / AgensGraph**: July 1 EST 
+
+Please visit the new repository for the latest updates, issues, and contributions after July 1 EST.
+
+Thank you for your continued support!
+
 AgensGraph: Powerful Graph Database
 ====================================
 ![Build Status](https://github.com/bitnine-oss/agensgraph/actions/workflows/regression.yml/badge.svg)
