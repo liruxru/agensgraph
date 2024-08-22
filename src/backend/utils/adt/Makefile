@@ -122,7 +122,11 @@ OBJS = \
 	cypher_ops.o \
 	shortestpathfuncs.o \
 	graphmeta.o \
-	cypher_empty_funcs.o
+	cypher_empty_funcs.o \
+	libcsv.o \
+	age_load.o \
+	ag_load_edges.o \
+	ag_load_labels.o 
 
 jsonpath_scan.c: FLEXFLAGS = -CF -p -p
 jsonpath_scan.c: FLEX_NO_BACKUP=yes

@@ -12020,6 +12020,12 @@
 { oid => '7248', descr => 'is jsonb empty?',
   proname => 'isempty', prorettype => 'bool',
   proargtypes => 'jsonb', prosrc => 'cypher_isempty_jsonb' },
+{ oid => '8004', descr => 'load_edges_from_file',
+  proname => 'load_edges_from_file', prorettype => 'void',
+  proargtypes => 'name name text', prosrc => 'load_edges_from_file' },
+{ oid => '8005', descr => 'load_labels_from_file',
+  proname => 'load_labels_from_file', prorettype => 'void',
+  proargtypes => 'name name text', prosrc => 'load_labels_from_file' },
 
 # agensgraph array functions
 { oid => '7300', descr => 'the first element in a array',
