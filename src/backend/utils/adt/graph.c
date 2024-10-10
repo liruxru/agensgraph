@@ -1174,6 +1174,14 @@ getVertexPropDatum(Datum datum)
 }
 
 Datum
+getOtherDatum(Datum datum,int index)
+{
+	HeapTupleHeader tuphdr = DatumGetHeapTupleHeader(datum);
+
+	return tuple_getattr(tuphdr, index);
+}
+
+Datum
 getVertexTidDatum(Datum datum)
 {
 	HeapTupleHeader tuphdr = DatumGetHeapTupleHeader(datum);

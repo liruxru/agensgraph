@@ -46,6 +46,7 @@
 #include "utils/builtins.h"
 #include "utils/fmgroids.h"
 #include "utils/jsonb.h"
+#include "utils/syscache.h"
 #include "optimizer/optimizer.h"
 
 static Node *transformCypherExprRecurse(ParseState *pstate, Node *expr);
@@ -323,13 +324,18 @@ transformColumnRef(ParseState *pstate, ColumnRef *cref)
 				continue;
 
 			/* examine `field1.field2` */
-			if (field2 != NULL &&
-				strcmp(rte->eref->aliasname, strVal(field1)) == 0)
-			{
-				node = scanNSItemForVar(pstate, nsitem, strVal(field2),
+			// if (field2 != NULL &&
+			// 	strcmp(rte->eref->aliasname, strVal(field1)) == 0)
+			// {
+			if (field2 != NULL){
+				Node* secondNode = scanNSItemForVar(pstate, nsitem, strVal(field2),
 										location);
-				nmatched = 2;
-			}
+				if ( secondNode != NULL){
+					node = secondNode;
+					nmatched = 2;
+				}						
+		    }
+			// }
 
 			/* examine `field1.field2.field3` */
 			if (OidIsValid(nspid1))
@@ -539,7 +545,7 @@ transformFields(ParseState *pstate, Node *basenode, List *fields, int location)
 
 	if (lf == NULL)
 		return res;
-
+    // 就在这里开始修改  把对properties的引用转换为对列的引用	
 	res = filterAccessArg(pstate, res, location, "map");
 
 	for_each_cell(lf, fields, lf)
@@ -567,7 +573,7 @@ filterAccessArg(ParseState *pstate, Node *expr, int location,
 	switch (exprtype)
 	{
 		case VERTEXOID:
-		case EDGEOID:
+		case EDGEOID: // 在这里修改应该是最佳位置
 			return ParseFuncOrColumn(pstate,
 									 list_make1(makeString(AG_ELEM_PROP_MAP)),
 									 list_make1(expr), pstate->p_last_srf,
@@ -2284,6 +2290,19 @@ coerce_all_to_jsonb(ParseState *pstate, Node *expr)
 	return expr;
 }
 
+static Oid g_EMBTYPEOID = InvalidOid;
+/* helper function to quickly set, if necessary, and retrieve AGTYPEOID */
+Oid get_EMBTYPEOID(void)
+{
+    if (g_EMBTYPEOID == InvalidOid)
+    {
+        g_EMBTYPEOID = TypenameGetTypidExtended("vector",false);
+    }
+
+    return g_EMBTYPEOID;
+}
+#define EMBTYPEOID get_EMBTYPEOID()
+ 
 Node *
 transformCypherMapForSet(ParseState *pstate, Node *expr, List **pathelems,
 						 char **varname)
@@ -2321,7 +2340,7 @@ transformCypherMapForSet(ParseState *pstate, Node *expr, List **pathelems,
 		elem = aelem;
 
 	elemtype = exprType(elem);
-	if (elemtype != VERTEXOID && elemtype != EDGEOID)
+	if (elemtype != VERTEXOID && elemtype != EDGEOID && elemtype !=EMBTYPEOID)
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_DATATYPE_MISMATCH),

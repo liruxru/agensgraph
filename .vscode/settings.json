@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "tuple": "c",
+        "jsonb.h": "c",
+        "syscache.h": "c",
+        "*.tcc": "c",
+        "limits": "c",
+        "ag_const.h": "c"
+    }
+}

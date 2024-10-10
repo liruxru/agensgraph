@@ -162,10 +162,10 @@ static bool arePathsConnected(CypherPath *path1, CypherPath *path2);
 
 /* MATCH - transform */
 static Node *transformComponents(ParseState *pstate, List *components,
-								 List **targetList);
+								 List **targetList,Node* embwhere);
 static Node *transformMatchNode(ParseState *pstate, CypherNode *cnode,
 								List **targetList, List **eqoList,
-								bool *isNSItem);
+								bool *isNSItem,Node* embwhere);
 static ParseNamespaceItem *transformMatchRel(ParseState *pstate,
 											 CypherRel *crel,
 											 List **targetList, List **eqoList,
@@ -716,7 +716,7 @@ transformCypherMatchClause(ParseState *pstate, CypherClause *clause)
 				components = makeComponents(detail->pattern);
 
 				qual = transformComponents(pstate, components,
-										   &qry->targetList);
+										   &qry->targetList,detail->where);
 				/* there is no need to resolve `qual` here */
 			}
 		}
@@ -1569,7 +1569,7 @@ arePathsConnected(CypherPath *path1, CypherPath *path2)
 }
 
 static Node *
-transformComponents(ParseState *pstate, List *components, List **targetList)
+transformComponents(ParseState *pstate, List *components, List **targetList,Node* embwhere)
 {
 	List	   *eqoList = NIL;
 	Node	   *qual = NULL;
@@ -1637,7 +1637,7 @@ transformComponents(ParseState *pstate, List *components, List **targetList)
 					{
 						vertex = transformMatchNode(pstate, cnode,
 													targetList, &eqoList,
-													&vertex_is_nsitem);
+													&vertex_is_nsitem,embwhere);
 						break;
 					}
 
@@ -1648,7 +1648,7 @@ transformComponents(ParseState *pstate, List *components, List **targetList)
 					 * because `crel` needs `id` column of the RTE
 					 */
 					vertex = transformMatchNode(pstate, cnode, targetList,
-												&eqoList, &vertex_is_nsitem);
+												&eqoList, &vertex_is_nsitem,embwhere);
 
 					if (p->kind != CPATH_NORMAL)
 					{
@@ -1668,7 +1668,7 @@ transformComponents(ParseState *pstate, List *components, List **targetList)
 				else
 				{
 					vertex = transformMatchNode(pstate, cnode, targetList,
-												&eqoList, &vertex_is_nsitem);
+												&eqoList, &vertex_is_nsitem,embwhere);
 					qual = addQualNodeIn(pstate, qual, vertex,
 										 vertex_is_nsitem, prev_crel,
 										 prev_edge, true);
@@ -1785,9 +1785,11 @@ transformComponents(ParseState *pstate, List *components, List **targetList)
 	return qual;
 }
 
+
+
 static Node *
 transformMatchNode(ParseState *pstate, CypherNode *cnode, List **targetList,
-				   List **eqoList, bool *isNSItem)
+				   List **eqoList, bool *isNSItem,Node* embwhere)
 {
 	char	   *varname = getCypherName(cnode->variable);
 	int			varloc = getCypherNameLoc(cnode->variable);
@@ -1952,6 +1954,35 @@ transformMatchNode(ParseState *pstate, CypherNode *cnode, List **targetList,
 			addElemQual(pstate, te->resno, cnode->prop_map);
 			*targetList = lappend(*targetList, te);
 		}
+
+		// if(embwhere != NULL){
+
+			Oid	typid;
+			ListCell   *lcoid;
+			RangeTblEntry *rte = nsitem->p_rte;
+			List* cols = rte->eref->colnames;
+		 
+			int index = 0;
+			foreach(lcoid, cols)
+			{
+				if (index > 1)
+				{
+				
+				   
+					char* name = strVal(lfirst(lcoid));
+					
+					Node	   *var = getColumnVar(pstate, nsitem, name);
+					TargetEntry *teee = makeTargetEntry((Expr *) var,
+									pstate->p_next_resno++,
+									name,
+									false);
+					*targetList = lappend(*targetList, teee);
+				}
+				index++;
+ 
+			}
+
+		// }
 	}
 
 	/* return RTE to help the caller can access columns directly */

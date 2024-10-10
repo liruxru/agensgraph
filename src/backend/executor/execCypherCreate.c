@@ -175,9 +175,12 @@ createVertex(ModifyGraphState *mgstate, GraphVertex *gvertex, Graphid *vid,
 	ExecSetSlotDescriptor(elemTupleSlot,
 						  RelationGetDescr(resultRelInfo->ri_RelationDesc));
 	elemTupleSlot->tts_values[0] = GraphidGetDatum(*vid);
-	elemTupleSlot->tts_values[1] = vertexProp;
+	elemTupleSlot->tts_values[1] = vertexProp; //	elemTupleSlot->tts_values[2] = NULL;
 	MemSet(elemTupleSlot->tts_isnull, false,
 		   elemTupleSlot->tts_tupleDescriptor->natts * sizeof(bool));
+    for (int i =2; i<elemTupleSlot->tts_tupleDescriptor->natts; i++ ){
+			elemTupleSlot->tts_isnull[i] = true;
+	}		   
 	ExecStoreVirtualTuple(elemTupleSlot);
 
 	ExecMaterializeSlot(elemTupleSlot);

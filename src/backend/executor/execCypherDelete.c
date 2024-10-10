@@ -22,6 +22,7 @@
 #include "access/xact.h"
 #include "commands/trigger.h"
 #include "utils/fmgroids.h"
+#include "ag_const.h"
 
 #define DatumGetItemPointer(X)		((ItemPointer) DatumGetPointer(X))
 #define ItemPointerGetDatum(X)		PointerGetDatum(X)
@@ -225,8 +226,15 @@ ExecDeleteGraphElement(ModifyGraphState *mgstate, Datum elem, Oid type)
 
 		values[Anum_table_vertex_id - 1] = GraphidGetDatum(vertex_id);
 		values[Anum_table_vertex_prop_map - 1] = getVertexPropDatum(elem);
+
+		TupleDesc tupdesc = CreateTemplateTupleDesc(2);
+		TupleDescInitEntry(tupdesc, (AttrNumber) 1, AG_ELEM_ID,
+						GRAPHIDOID, -1, 0);
+		TupleDescInitEntry(tupdesc, (AttrNumber) 2, AG_ELEM_PROP_MAP,
+						JSONBOID, -1, 0);
+
 		tuple = heap_form_tuple(
-								RelationGetDescr(resultRelInfo->ri_RelationDesc),
+								tupdesc,
 								values, isnull);
 
 		tuple->t_self = *(DatumGetItemPointer(getVertexTidDatum(elem)));

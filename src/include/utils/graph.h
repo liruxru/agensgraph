@@ -151,6 +151,7 @@ extern Datum vertex_labels(PG_FUNCTION_ARGS);
 /* support functions */
 extern Datum getVertexIdDatum(Datum datum);
 extern Datum getVertexPropDatum(Datum datum);
+extern Datum getOtherDatum(Datum datum,int index);
 extern Datum getVertexTidDatum(Datum datum);
 extern Datum getEdgeIdDatum(Datum datum);
 extern Datum getEdgeStartDatum(Datum datum);
