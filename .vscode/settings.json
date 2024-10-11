@@ -5,6 +5,7 @@
         "syscache.h": "c",
         "*.tcc": "c",
         "limits": "c",
-        "ag_const.h": "c"
+        "ag_const.h": "c",
+        "sstream": "c"
     }
 }

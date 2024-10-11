@@ -4366,6 +4366,33 @@ resolve_var_from_targetlist_walker(Node *node,
 	return expression_tree_walker(node, resolve_var_from_targetlist_walker, ctx);
 }
 
+char* remove_quotes(const char* str) {
+    // 获取字符串的长度
+    size_t len = strlen(str);
+    
+    // 如果字符串长度小于2，直接返回原字符串
+    if (len < 2) {
+        return strdup(str); // 返回原始字符串的副本
+    }
+
+    // 检查开头和结尾是否为双引号
+    if (str[0] == '"' && str[len - 1] == '"') {
+        // 创建新的字符串，长度为原始长度减去2
+        char* result = (char*)malloc(len - 1);
+        if (result == NULL) {
+            perror("Failed to allocate memory");
+            exit(EXIT_FAILURE);
+        }
+        // 复制去掉双引号的内容
+        strncpy(result, str + 1, len - 2);
+        result[len - 2] = '\0'; // 添加字符串结束符
+        return result;
+    }
+
+    // 如果没有双引号，返回原始字符串的副本
+    return strdup(str);
+}
+
 /*
  * substitute_set_props_as_targetentry
  */
@@ -4470,6 +4497,21 @@ substitute_set_props_as_targetentry(ParseState *pstate, Query *query,
 																 EDGEOID, -1);
 
 				targetEntry->expr = new_expr;
+			}else{
+				Expr* newArg = lfirst( list_head(((FuncExpr *) gsp->expr)->args)) ;
+				Const*  constarg = ((Const*)newArg);
+			
+				Jsonb *jb  = DatumGetJsonbP(constarg->constvalue);
+				char *out  = JsonbToCString(NULL, &jb->root, VARSIZE(jb));
+				out = remove_quotes(out);
+				Datum datum =   CStringGetDatum(out);
+				Oid			coll = InvalidOid;
+				constarg = makeConst(UNKNOWNOID, -1, coll, -2, datum, false, false);
+
+				Var* var =(Var *) targetEntry->expr;
+				Expr* newExpr = coerce_expr(pstate, constarg,constarg->consttype, var->vartype, var->vartypmod,
+						   COERCION_ASSIGNMENT, COERCE_IMPLICIT_CAST, -1);
+				targetEntry->expr = newExpr ;
 			}
 		}
 	}

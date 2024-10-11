@@ -36,7 +36,7 @@ static Datum GraphTableTupleUpdate(ModifyGraphState *mgstate,
 static Datum
 GraphTableTupleUpdateAttachment(ModifyGraphState *mgstate, Oid tts_value_type,
 					  Datum tts_value,  Oid graph_tts_value_type,
-					  Datum graph_tts_value,int attidx);
+					  Datum graph_tts_value,char* attname);
 /*
  * LegacyExecSetGraph
  *
@@ -183,14 +183,18 @@ ExecSetGraph(ModifyGraphState *mgstate, TupleTableSlot *slot)
 					Datum		graph_datum = slot->tts_values[j];
 					Oid			graph_element_type = slot->tts_tupleDescriptor->attrs[j].atttypid;
 			 		if( graph_element_type == VERTEXOID || graph_element_type == EDGEOID ){
-
-						affected_datum = GraphTableTupleUpdateAttachment(mgstate,
+						if(slot->tts_tupleDescriptor->attrs[j].attrelid == slot->tts_tupleDescriptor->attrs[i].attrelid){
+							char* attname =  NameStr(slot->tts_tupleDescriptor->attrs[i].attname) ;
+							affected_datum = GraphTableTupleUpdateAttachment(mgstate,
 											element_type,
 											cur_datum,
 											graph_element_type,
 											graph_datum,
-											i);
+											attname);
 						break;
+						}
+
+					
 					}
 
 				}
@@ -304,7 +308,7 @@ findAndReflectNewestValue(ModifyGraphState *mgstate, TupleTableSlot *slot)
 static Datum
 GraphTableTupleUpdateAttachment(ModifyGraphState *mgstate, Oid tts_value_type,
 					  Datum tts_value, Oid graph_tts_value_type,
-					  Datum graph_tts_value, int attidx)
+					  Datum graph_tts_value, char* attname)
 {
 	EState	   *estate = mgstate->ps.state;
 	EPQState   *epqstate = &mgstate->mt_epqstate;
@@ -323,6 +327,7 @@ GraphTableTupleUpdateAttachment(ModifyGraphState *mgstate, Oid tts_value_type,
 	ModifiedElemEntry *entry;
 	Datum		inserted_datum;
 	List	   *recheckIndexes = NIL;
+	int attidx = 0;
 
 	if (graph_tts_value_type == VERTEXOID)
 	{
@@ -366,14 +371,35 @@ GraphTableTupleUpdateAttachment(ModifyGraphState *mgstate, Oid tts_value_type,
 
 	tts_values = elemTupleSlot->tts_values;
 
+	TupleTableSlot *oldslot = ExecInitExtraTupleSlot(estate, elemTupleSlot->tts_tupleDescriptor,
+													&TTSOpsBufferHeapTuple);
+	oldslot->tts_flags &= ~(TTS_FLAG_SHOULDFREE);
+	table_tuple_fetch_row_version(resultRelInfo->ri_RelationDesc,
+											   ctid,
+											   estate->es_snapshot,
+											   oldslot)	;
+											   ExecMaterializeSlot(oldslot);
+	slot_getsomeattrs(oldslot,elemTupleSlot->tts_tupleDescriptor->natts );
+
+		
+
+
 	if (graph_tts_value_type == VERTEXOID)
 	{
 		tts_values[Anum_ag_vertex_id - 1] = gid;
 		tts_values[Anum_ag_vertex_properties - 1] = getVertexPropDatum(graph_tts_value);
-				MemSet(elemTupleSlot->tts_isnull, false,
+
+		MemSet(elemTupleSlot->tts_isnull, false,
 		elemTupleSlot->tts_tupleDescriptor->natts * sizeof(bool));
+
 		for (int i =2; i<elemTupleSlot->tts_tupleDescriptor->natts; i++ ){
-			elemTupleSlot->tts_isnull[i] = true;
+			char	   *attr_name = NameStr(elemTupleSlot->tts_tupleDescriptor->attrs[i].attname);
+			if(strcmp(attr_name,attname) == 0 ){
+				// 设置别的列
+				tts_values[i] = tts_value;
+			}else{
+				tts_values[i] = oldslot->tts_values[i];
+			}
 		}	
 	}
 	else if(graph_tts_value_type == EDGEOID)
@@ -384,12 +410,18 @@ GraphTableTupleUpdateAttachment(ModifyGraphState *mgstate, Oid tts_value_type,
 		tts_values[Anum_ag_edge_start - 1] = getEdgeStartDatum(graph_tts_value);
 		tts_values[Anum_ag_edge_end - 1] = getEdgeEndDatum(graph_tts_value);
 		tts_values[Anum_ag_edge_properties - 1] = getEdgePropDatum(graph_tts_value);
-				MemSet(elemTupleSlot->tts_isnull, false,
+		MemSet(elemTupleSlot->tts_isnull, false,
 		elemTupleSlot->tts_tupleDescriptor->natts * sizeof(bool));
-		for (int i =4; i<elemTupleSlot->tts_tupleDescriptor->natts; i++ ){
-			elemTupleSlot->tts_isnull[i] = true;
-		}	
 
+		for (int i =4; i<elemTupleSlot->tts_tupleDescriptor->natts; i++ ){
+			char	   *attr_name = NameStr(elemTupleSlot->tts_tupleDescriptor->attrs[i].attname);
+			if(strcmp(attr_name,attname) == 0 ){
+				// 设置别的列
+				tts_values[i] = tts_value;
+			}else{
+				tts_values[i] = oldslot->tts_values[i];
+			}
+		}
 	}
 
 	ExecStoreVirtualTuple(elemTupleSlot);
@@ -403,7 +435,6 @@ GraphTableTupleUpdateAttachment(ModifyGraphState *mgstate, Oid tts_value_type,
 			return (Datum) 0;
 	}
 
-lreplace:
 	ExecMaterializeSlot(elemTupleSlot);
 	elemTupleSlot->tts_tableOid = RelationGetRelid(resultRelationDesc);
 
@@ -456,33 +487,7 @@ lreplace:
 				switch (result)
 				{
 					case TM_Ok:
-						Assert(tmfd.traversed);
-
-						epqslot = EvalPlanQual(epqstate,
-											   resultRelationDesc,
-											   resultRelInfo->ri_RangeTableIndex,
-											   inputslot);
-
-						if (TupIsNull(epqslot))
-							/* Tuple not passing quals anymore, exiting... */
-							return (Datum) 0;
-
-						slot_getallattrs(epqslot);
-						Assert(!epqslot->tts_isnull[attidx]);
-						tts_value = epqslot->tts_values[attidx];
-
-						if (tts_value_type == VERTEXOID)
-						{
-							tts_values[Anum_ag_vertex_properties - 1] = getVertexPropDatum(tts_value);
-						}
-						else
-						{
-							tts_values[Anum_ag_edge_start - 1] = getEdgeStartDatum(tts_value);
-							tts_values[Anum_ag_edge_end - 1] = getEdgeEndDatum(tts_value);
-							tts_values[Anum_ag_edge_properties - 1] = getEdgePropDatum(tts_value);
-						}
-
-						goto lreplace;
+						return (Datum) 0;
 					case TM_Deleted:
 						/* tuple already deleted; nothing to do */
 						return (Datum) 0;
@@ -535,7 +540,7 @@ lreplace:
 
 	entry = hash_search(mgstate->elemTable, &gid, HASH_ENTER, &hash_found);
 
-	if (tts_value_type == VERTEXOID)
+	if (graph_tts_value_type == VERTEXOID)
 	{
 		inserted_datum = makeGraphVertexDatum(gid,
 											  tts_values[Anum_ag_vertex_properties - 1],
@@ -659,7 +664,7 @@ GraphTableTupleUpdate(ModifyGraphState *mgstate, Oid tts_value_type,
 		MemSet(elemTupleSlot->tts_isnull, false,
 		elemTupleSlot->tts_tupleDescriptor->natts * sizeof(bool));
 		for (int i =4; i<elemTupleSlot->tts_tupleDescriptor->natts; i++ ){
-			elemTupleSlot->tts_isnull[i] = true;
+			tts_values[i] = oldslot->tts_values[i];
 		}
 	}
 	// else{
