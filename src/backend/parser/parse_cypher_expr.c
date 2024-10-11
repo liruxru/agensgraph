@@ -2340,15 +2340,15 @@ transformCypherMapForSet(ParseState *pstate, Node *expr, List **pathelems,
 		elem = aelem;
 
 	elemtype = exprType(elem);
-	if (elemtype != VERTEXOID && elemtype != EDGEOID && elemtype !=EMBTYPEOID)
-	{
-		ereport(ERROR,
-				(errcode(ERRCODE_DATATYPE_MISMATCH),
-				 errmsg("vertex or edge is expected but %s",
-						format_type_be(elemtype)),
-				 parser_errposition(pstate, exprLocation(aelem))));
-		return NULL;
-	}
+	// if (elemtype != VERTEXOID && elemtype != EDGEOID  /*&& elemtype !=EMBTYPEOID*/)
+	// {
+	// 	ereport(ERROR,
+	// 			(errcode(ERRCODE_DATATYPE_MISMATCH),
+	// 			 errmsg("vertex or edge is expected but %s",
+	// 					format_type_be(elemtype)),
+	// 			 parser_errposition(pstate, exprLocation(aelem))));
+	// 	return NULL;
+	// }
 
 	if (IsA(elem, Var))
 	{

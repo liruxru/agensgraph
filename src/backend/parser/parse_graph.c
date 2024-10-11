@@ -4499,18 +4499,35 @@ substitute_set_props_as_targetentry(ParseState *pstate, Query *query,
 				targetEntry->expr = new_expr;
 			}else{
 				Expr* newArg = lfirst( list_head(((FuncExpr *) gsp->expr)->args)) ;
-				Const*  constarg = ((Const*)newArg);
-			
-				Jsonb *jb  = DatumGetJsonbP(constarg->constvalue);
-				char *out  = JsonbToCString(NULL, &jb->root, VARSIZE(jb));
-				out = remove_quotes(out);
-				Datum datum =   CStringGetDatum(out);
-				Oid			coll = InvalidOid;
-				constarg = makeConst(UNKNOWNOID, -1, coll, -2, datum, false, false);
-
 				Var* var =(Var *) targetEntry->expr;
-				Expr* newExpr = coerce_expr(pstate, constarg,constarg->consttype, var->vartype, var->vartypmod,
+				Expr* newExpr = NULL;
+				if(IsA(newArg,Const)){
+					Const*  constarg = ((Const*)newArg);
+				
+					Jsonb *jb  = DatumGetJsonbP(constarg->constvalue);
+					char *out  = JsonbToCString(NULL, &jb->root, VARSIZE(jb));
+					out = remove_quotes(out);
+					Datum datum =   CStringGetDatum(out);
+					Oid			coll = InvalidOid;
+					constarg = makeConst(UNKNOWNOID, -1, coll, -2, datum, false, false);
+						newExpr   = coerce_expr(pstate, constarg,constarg->consttype, var->vartype, var->vartypmod,
 						   COERCION_ASSIGNMENT, COERCE_IMPLICIT_CAST, -1);
+				}else if(IsA(newArg,FuncExpr)){
+					FuncExpr*  subFun = ((FuncExpr*)newArg);
+					newArg = lfirst( list_head((subFun)->args)) ;
+					if(IsA(newArg,FuncExpr)){
+						 subFun = ((FuncExpr*)newArg);
+						newExpr   = coerce_expr(pstate, newArg,subFun->funcresulttype, var->vartype, var->vartypmod,
+						   COERCION_ASSIGNMENT, COERCE_IMPLICIT_CAST, -1);
+					}
+			
+				}else{
+					newExpr   = coerce_expr(pstate, newArg,JSONBOID, var->vartype, var->vartypmod,
+						   COERCION_ASSIGNMENT, COERCE_IMPLICIT_CAST, -1);
+				}
+
+
+			
 				targetEntry->expr = newExpr ;
 			}
 		}
