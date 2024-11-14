@@ -272,6 +272,9 @@ createEdge(ModifyGraphState *mgstate, GraphEdge *gedge, Graphid start,
 	elemTupleSlot->tts_values[3] = edgeProp;
 	MemSet(elemTupleSlot->tts_isnull, false,
 		   elemTupleSlot->tts_tupleDescriptor->natts * sizeof(bool));
+	for (int i =4; i<elemTupleSlot->tts_tupleDescriptor->natts; i++ ){
+			elemTupleSlot->tts_isnull[i] = true;
+	}			   
 	ExecStoreVirtualTuple(elemTupleSlot);
 
 	ExecMaterializeSlot(elemTupleSlot);

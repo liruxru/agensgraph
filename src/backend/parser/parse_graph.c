@@ -2087,6 +2087,31 @@ transformMatchSR(ParseState *pstate, CypherRel *crel, List **targetList,
 			addElemQual(pstate, te->resno, crel->prop_map);
 			*targetList = lappend(*targetList, te);
 		}
+
+		Oid	typid;
+		ListCell   *lcoid;
+		RangeTblEntry *rte = nsitem->p_rte;
+		List* cols = rte->eref->colnames;
+		
+		int index = 0;
+		foreach(lcoid, cols)
+		{
+			if (index > 3)
+			{
+			
+				
+				char* name = strVal(lfirst(lcoid));
+				
+				Node	   *var = getColumnVar(pstate, nsitem, name);
+				TargetEntry *teee = makeTargetEntry((Expr *) var,
+								pstate->p_next_resno++,
+								name,
+								false);
+				*targetList = lappend(*targetList, teee);
+			}
+			index++;
+
+		}
 	}
 
 	return nsitem;

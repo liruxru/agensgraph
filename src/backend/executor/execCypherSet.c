@@ -178,12 +178,11 @@ ExecSetGraph(ModifyGraphState *mgstate, TupleTableSlot *slot)
 			Datum		cur_datum = slot->tts_values[i];
 			Oid			element_type = slot->tts_tupleDescriptor->attrs[i].atttypid;
 			Datum	affected_datum = 0;
-			if( element_type != VERTEXOID && element_type != EDGEOID ){
-				for (int j = 0; j < slot->tts_tupleDescriptor->natts; j++){
-					Datum		graph_datum = slot->tts_values[j];
-					Oid			graph_element_type = slot->tts_tupleDescriptor->attrs[j].atttypid;
-			 		if( graph_element_type == VERTEXOID || graph_element_type == EDGEOID ){
-						if(slot->tts_tupleDescriptor->attrs[j].attrelid == slot->tts_tupleDescriptor->attrs[i].attrelid){
+			if( element_type != VERTEXOID && element_type != EDGEOID && i>=1 ){
+				    for (int j = i-1; j >=0; j--){
+						if(slot->tts_tupleDescriptor->attrs[j].atttypid == VERTEXOID || slot->tts_tupleDescriptor->attrs[j].atttypid == EDGEOID ){
+							Datum		graph_datum = slot->tts_values[j];
+							Oid			graph_element_type = slot->tts_tupleDescriptor->attrs[j].atttypid;
 							char* attname =  NameStr(slot->tts_tupleDescriptor->attrs[i].attname) ;
 							affected_datum = GraphTableTupleUpdateAttachment(mgstate,
 											element_type,
@@ -191,13 +190,28 @@ ExecSetGraph(ModifyGraphState *mgstate, TupleTableSlot *slot)
 											graph_element_type,
 											graph_datum,
 											attname);
-						break;
+							break;				
 						}
 
-					
 					}
 
-				}
+				// for (int j = 0; j < slot->tts_tupleDescriptor->natts; j++){
+				// 	Datum		graph_datum = slot->tts_values[j];
+				// 	Oid			graph_element_type = slot->tts_tupleDescriptor->attrs[j].atttypid;
+			 	// 	if( graph_element_type == VERTEXOID || graph_element_type == EDGEOID ){
+				// 		if(slot->tts_tupleDescriptor->attrs[j].attrelid == slot->tts_tupleDescriptor->attrs[i].attrelid){
+				// 			char* attname =  NameStr(slot->tts_tupleDescriptor->attrs[i].attname) ;
+				// 			affected_datum = GraphTableTupleUpdateAttachment(mgstate,
+				// 							element_type,
+				// 							cur_datum,
+				// 							graph_element_type,
+				// 							graph_datum,
+				// 							attname);
+				// 		break;
+				// 		}
+				// 	}
+
+				// }
 
 
 			}else{
@@ -404,7 +418,7 @@ GraphTableTupleUpdateAttachment(ModifyGraphState *mgstate, Oid tts_value_type,
 	}
 	else if(graph_tts_value_type == EDGEOID)
 	{
-		Assert(tts_value_type == EDGEOID);
+		Assert(graph_tts_value_type == EDGEOID);
 
 		tts_values[Anum_ag_edge_id - 1] = gid;
 		tts_values[Anum_ag_edge_start - 1] = getEdgeStartDatum(graph_tts_value);
