@@ -649,12 +649,17 @@ GraphTableTupleUpdate(ModifyGraphState *mgstate, Oid tts_value_type,
 	TupleTableSlot *oldslot = ExecInitExtraTupleSlot(estate, elemTupleSlot->tts_tupleDescriptor,
 													&TTSOpsBufferHeapTuple);
 	oldslot->tts_flags &= ~(TTS_FLAG_SHOULDFREE);
-	table_tuple_fetch_row_version(resultRelInfo->ri_RelationDesc,
-											   ctid,
-											   estate->es_snapshot,
-											   oldslot)	;
-											   ExecMaterializeSlot(oldslot);
-	slot_getsomeattrs(oldslot,elemTupleSlot->tts_tupleDescriptor->natts );
+	if(TTS_EMPTY(oldslot)){
+
+	}else{
+		table_tuple_fetch_row_version(resultRelInfo->ri_RelationDesc,
+												ctid,
+												estate->es_snapshot,
+												oldslot)	;
+												ExecMaterializeSlot(oldslot);
+		slot_getsomeattrs(oldslot,elemTupleSlot->tts_tupleDescriptor->natts );
+	}
+
 
 	if (tts_value_type == VERTEXOID)
 	{
@@ -662,10 +667,12 @@ GraphTableTupleUpdate(ModifyGraphState *mgstate, Oid tts_value_type,
 		tts_values[Anum_ag_vertex_properties - 1] = getVertexPropDatum(tts_value);
 		MemSet(elemTupleSlot->tts_isnull, false,
 		elemTupleSlot->tts_tupleDescriptor->natts * sizeof(bool));
-
-		for (int i =2; i<elemTupleSlot->tts_tupleDescriptor->natts; i++ ){
-			tts_values[i] = oldslot->tts_values[i];
-		}	
+		if(!TTS_EMPTY(oldslot)){
+			
+			for (int i =2; i<elemTupleSlot->tts_tupleDescriptor->natts; i++ ){
+				tts_values[i] = oldslot->tts_values[i];
+			}	
+		}
 	}
 	else if(tts_value_type == EDGEOID)
 	{
@@ -676,9 +683,12 @@ GraphTableTupleUpdate(ModifyGraphState *mgstate, Oid tts_value_type,
 		tts_values[Anum_ag_edge_end - 1] = getEdgeEndDatum(tts_value);
 		tts_values[Anum_ag_edge_properties - 1] = getEdgePropDatum(tts_value);
 		MemSet(elemTupleSlot->tts_isnull, false,
-		elemTupleSlot->tts_tupleDescriptor->natts * sizeof(bool));
-		for (int i =4; i<elemTupleSlot->tts_tupleDescriptor->natts; i++ ){
-			tts_values[i] = oldslot->tts_values[i];
+			elemTupleSlot->tts_tupleDescriptor->natts * sizeof(bool));
+		if(!TTS_EMPTY(oldslot)){
+			
+			for (int i =4; i<elemTupleSlot->tts_tupleDescriptor->natts; i++ ){
+				tts_values[i] = oldslot->tts_values[i];
+			}
 		}
 	}
 	// else{
