@@ -134,10 +134,16 @@ void vertex_row_cb(int delim __attribute__((unused)), void *data)
 
         // props = create_agtype_from_list(cr->header, cr->fields,cr->col_type,
         //                n_fields, label_id_int);
-        props = create_agtype_from_list(cr->header, cr->fields,cr->col_type,
-                       n_fields, label_id_int);
-        insert_vertex_simple(cr->graph_id, cr->object_name,
-                             object_graph_id, props );
+        // props = create_agtype_from_list(cr->header, cr->fields,cr->col_type,
+        //                n_fields, label_id_int);
+        // insert_vertex_simple(cr->graph_id, cr->object_name,
+        //                      object_graph_id, props );
+		 if(n_fields == cr->header_num ){
+            props = create_agtype_from_list(cr->header, cr->fields,cr->col_type,
+                        n_fields, label_id_int);
+            insert_vertex_simple(cr->graph_id, cr->object_name,
+                                object_graph_id, props );
+        }
     }
 
 
